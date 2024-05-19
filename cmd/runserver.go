@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"net"
@@ -9,8 +10,10 @@ import (
 	"net/url"
 	"os"
 	"os/exec"
+	"os/signal"
 	"path/filepath"
 	"strconv"
+	"syscall"
 )
 
 func Runserver() {
@@ -27,7 +30,7 @@ func Runserver() {
 		println("Migrations not applied, run: stack manage migrate")
 	}
 
-	gunicornURL, err := startGunicorn(devMode)
+	gunicornURL, gunicornCmd, err := startGunicorn(devMode)
 	if err != nil {
 		return
 	}
@@ -45,11 +48,33 @@ func Runserver() {
 		reverseProxy(w, r, gunicornURL)
 	})
 
-	println("Starting server at: " + addrport)
-	err = http.ListenAndServe(addrport, nil)
-	if err != nil {
-		fmt.Println("Error starting server:", err)
+	server := &http.Server{Addr: addrport}
+	go func() {
+		println("Starting server at: " + addrport)
+		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			fmt.Printf("HTTP server error: %v\n", err)
+		}
+	}()
+
+	// Capture interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
+	// Handle shutdown
+	fmt.Println("Shutting down...")
+
+	// Terminate Python subprocess
+	if err := gunicornCmd.Process.Signal(os.Interrupt); err != nil {
+		fmt.Printf("Error terminating Python subprocess: %v\n", err)
 	}
+	gunicornCmd.Process.Wait()
+
+	// Shutdown HTTP server gracefully
+	if err := server.Shutdown(context.Background()); err != nil {
+		fmt.Printf("Error shutting down HTTP server: %v\n", err)
+	}
+
 }
 
 func findAvailablePort(startPort int) (int, error) {
@@ -73,12 +98,12 @@ func reverseProxy(w http.ResponseWriter, r *http.Request, gunicornURL string) {
 	proxy.ServeHTTP(w, r)
 }
 
-func startGunicorn(devMode bool) (string, error) {
+func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
 	tempDir := GlobalContext.TempDir
 	gunicornPort, err := findAvailablePort(8100)
 	if err != nil {
 		fmt.Println("Error finding gunicorn port:", err)
-		return "", err
+		return "", nil, err
 	}
 	gunicornURL := fmt.Sprintf("127.0.0.1:%d", gunicornPort)
 
@@ -103,7 +128,7 @@ func startGunicorn(devMode bool) (string, error) {
 
 	if err != nil {
 		fmt.Println("Error starting gunicorn process:", err)
-		return "", nil
+		return "", nil, nil
 	}
-	return gunicornURL, nil
+	return gunicornURL, cmd, nil
 }
