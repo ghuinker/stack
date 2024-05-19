@@ -1,0 +1,17 @@
+.env
+
+stack
+db.sqlite3
+
+venv
+node_modules
+static/*
+media/*
+
+.DS_Store
+.idea
+.vscode
+
+tmp/*
+dist/*
+__pycache__
