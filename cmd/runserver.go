@@ -15,26 +15,28 @@ import (
 )
 
 func Runserver() {
-	var addrport string
 	var devMode bool
-	flag.StringVar(&addrport, "addr", "127.0.0.1:8000", "Optional address and port number, or ipaddr:port")
+	addrport := os.Getenv("ADDR")
+
+	flag.StringVar(&addrport, "addr", addrport, "Optional address and port number, or ipaddr:port")
 	flag.BoolVar(&devMode, "dev", false, "Run server in dev mode")
 
 	flag.CommandLine.Parse(os.Args[2:])
 
 	if !strings.Contains(addrport, ":") {
-		// If it doesn't contain a colon, assume it's just a port number and prepend 127.0.0.1
 		addrport = "127.0.0.1:" + addrport
 	}
 
-	fmt.Println("Starting server at:", addrport)
-	// TODO: we may want to check for migrations
+	err := runManageCommand([]string{"migrate", "--check"})
+	if err != nil {
+		println("Migrations not applied, run: stack manage migrate")
+	}
+
 	gunicornURL, err := startGunicorn(devMode)
 	if err != nil {
 		return
 	}
 
-	// TODO: if devmode then figure out asset thing for vite
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
@@ -88,6 +90,7 @@ func startGunicorn(devMode bool) (string, error) {
 		cmdArgs = append(cmdArgs, "--reload")
 	}
 	cmd := exec.Command("python3", cmdArgs...)
+	cmd.Env = append(cmd.Env, "DIST_DIR="+tempDir)
 	if devMode {
 		setDevPythonEnv(cmd)
 		cmd.Env = append(cmd.Env, "DEBUG=true")

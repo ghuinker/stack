@@ -1,17 +1,20 @@
 package main
 
 import (
+	"bufio"
 	"embed"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"stack/cmd"
+	"strings"
 )
 
 //go:embed app
 //go:embed venv/bin/gunicorn
 //go:embed manage.py
+//go:embed static/assets/manifest.json
 //go:embed all:venv/lib/python3.12/site-packages/asgiref all:venv/lib/python3.12/site-packages/Django all:venv/lib/python3.12/site-packages/environs all:venv/lib/python3.12/site-packages/gunicorn all:venv/lib/python3.12/site-packages/marshmallow all:venv/lib/python3.12/site-packages/packaging all:venv/lib/python3.12/site-packages/dotenv all:venv/lib/python3.12/site-packages/sqlparse
 var embeddedFiles embed.FS
 
@@ -19,10 +22,8 @@ var embeddedFiles embed.FS
 var staticFiles embed.FS
 
 /* TODO:
-1. Setup yarn
-2. Import DDVVT into this
-3. So I can make setup and it is ready
-4. Make a command for updating the embeds
+1. Logging
+2. gunicorn retries?
 */
 
 func main() {
@@ -32,6 +33,8 @@ func main() {
 	}
 
 	command := os.Args[1]
+
+	loadEnvFile(".env")
 
 	// 1. Create a temporary directory
 	tempDir, err := os.MkdirTemp("", "")
@@ -86,4 +89,42 @@ func extractFiles(embeddedFS embed.FS, targetDir string) error {
 		}
 		return nil
 	})
+}
+
+func loadEnvFile(filename string) error {
+	file, err := os.Open(filename)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	for scanner.Scan() {
+		line := scanner.Text()
+
+		// Ignore comments and empty lines
+		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
+			continue
+		}
+
+		// Split the line into key and value
+		parts := strings.SplitN(line, "=", 2)
+		if len(parts) != 2 {
+			return fmt.Errorf("invalid line in .env file: %s", line)
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+
+		// Set the environment variable
+		if err := os.Setenv(key, value); err != nil {
+			return fmt.Errorf("error setting environment variable: %v", err)
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return fmt.Errorf("error reading .env file: %v", err)
+	}
+
+	return nil
 }
