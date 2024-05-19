@@ -1,17 +1,18 @@
 .PHONY: build static
 
-static:
+prebuild:
 	rm -rf static/*
 	python3 manage.py collectstatic --no-input
 	yarn build
 	cp -r assets/icons static/icons
+	find app -type d -name '__pycache__' -exec rm -r {} +
 
 build:
-	make static
+	make prebuild
 	go build -ldflags="-w -s" -o stack
 
 build-amd:
-	make static
+	make prebuild
 	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o stack
 
 setup-project:

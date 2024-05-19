@@ -15,6 +15,7 @@ import (
 //go:embed venv/bin/gunicorn
 //go:embed manage.py
 //go:embed static/assets/manifest.json
+//go:embed .env.example
 //go:embed all:venv/lib/python3.12/site-packages/asgiref all:venv/lib/python3.12/site-packages/certifi all:venv/lib/python3.12/site-packages/charset_normalizer all:venv/lib/python3.12/site-packages/django all:venv/lib/python3.12/site-packages/django_filters all:venv/lib/python3.12/site-packages/rest_framework all:venv/lib/python3.12/site-packages/environs all:venv/lib/python3.12/site-packages/gunicorn all:venv/lib/python3.12/site-packages/idna all:venv/lib/python3.12/site-packages/marshmallow all:venv/lib/python3.12/site-packages/packaging all:venv/lib/python3.12/site-packages/dotenv all:venv/lib/python3.12/site-packages/requests all:venv/lib/python3.12/site-packages/sqlparse all:venv/lib/python3.12/site-packages/urllib3
 var embeddedFiles embed.FS
 
@@ -23,8 +24,6 @@ var staticFiles embed.FS
 
 /* TODO:
 1. Logging
-2. Test out the deploying and everything
-	1. Copy and paste env
 */
 
 func main() {
@@ -64,6 +63,8 @@ func main() {
 		cmd.CreateSuperUser()
 	case "updateembed":
 		cmd.UpdateEmbed()
+	case "setup":
+		cmd.Setup()
 	default:
 		fmt.Println("Unknown command:", command)
 	}
@@ -103,12 +104,10 @@ func loadEnvFile(filename string) error {
 	for scanner.Scan() {
 		line := scanner.Text()
 
-		// Ignore comments and empty lines
 		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
 			continue
 		}
 
-		// Split the line into key and value
 		parts := strings.SplitN(line, "=", 2)
 		if len(parts) != 2 {
 			return fmt.Errorf("invalid line in .env file: %s", line)
@@ -117,7 +116,6 @@ func loadEnvFile(filename string) error {
 		key := strings.TrimSpace(parts[0])
 		value := strings.TrimSpace(parts[1])
 
-		// Set the environment variable
 		if err := os.Setenv(key, value); err != nil {
 			return fmt.Errorf("error setting environment variable: %v", err)
 		}
