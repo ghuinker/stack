@@ -62,6 +62,7 @@ func UpdateEmbed() {
 			builder.WriteString(override)
 		} else {
 			pkg = strings.Replace(pkg, "-", "_", -1)
+			pkg = strings.ToLower(pkg)
 			builder.WriteString(pkg)
 		}
 		builder.WriteString(" ")

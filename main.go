@@ -11,11 +11,11 @@ import (
 	"strings"
 )
 
-//go:embed app
+//go:embed all:app
 //go:embed venv/bin/gunicorn
 //go:embed manage.py
 //go:embed static/assets/manifest.json
-//go:embed all:venv/lib/python3.12/site-packages/asgiref all:venv/lib/python3.12/site-packages/certifi all:venv/lib/python3.12/site-packages/charset_normalizer all:venv/lib/python3.12/site-packages/Django all:venv/lib/python3.12/site-packages/django_filters all:venv/lib/python3.12/site-packages/rest_framework all:venv/lib/python3.12/site-packages/environs all:venv/lib/python3.12/site-packages/gunicorn all:venv/lib/python3.12/site-packages/idna all:venv/lib/python3.12/site-packages/marshmallow all:venv/lib/python3.12/site-packages/packaging all:venv/lib/python3.12/site-packages/dotenv all:venv/lib/python3.12/site-packages/requests all:venv/lib/python3.12/site-packages/sqlparse all:venv/lib/python3.12/site-packages/urllib3
+//go:embed all:venv/lib/python3.12/site-packages/asgiref all:venv/lib/python3.12/site-packages/certifi all:venv/lib/python3.12/site-packages/charset_normalizer all:venv/lib/python3.12/site-packages/django all:venv/lib/python3.12/site-packages/django_filters all:venv/lib/python3.12/site-packages/rest_framework all:venv/lib/python3.12/site-packages/environs all:venv/lib/python3.12/site-packages/gunicorn all:venv/lib/python3.12/site-packages/idna all:venv/lib/python3.12/site-packages/marshmallow all:venv/lib/python3.12/site-packages/packaging all:venv/lib/python3.12/site-packages/dotenv all:venv/lib/python3.12/site-packages/requests all:venv/lib/python3.12/site-packages/sqlparse all:venv/lib/python3.12/site-packages/urllib3
 var embeddedFiles embed.FS
 
 //go:embed static/*
@@ -24,6 +24,7 @@ var staticFiles embed.FS
 /* TODO:
 1. Logging
 2. Test out the deploying and everything
+	1. Copy and paste env
 */
 
 func main() {
@@ -36,7 +37,6 @@ func main() {
 
 	loadEnvFile(".env")
 
-	// 1. Create a temporary directory
 	tempDir, err := os.MkdirTemp("", "")
 	if err != nil {
 		fmt.Println("Error creating temporary directory:", err)
@@ -74,12 +74,13 @@ func extractFiles(embeddedFS embed.FS, targetDir string) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() {
+		if !d.IsDir() && !strings.Contains(path, "__pycache__") {
 			fileContent, err := embeddedFS.ReadFile(path)
 			if err != nil {
 				return err
 			}
 			filePath := filepath.Join(targetDir, path)
+
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 				return err
 			}

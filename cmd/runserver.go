@@ -11,7 +11,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strconv"
-	"strings"
 )
 
 func Runserver() {
@@ -22,10 +21,6 @@ func Runserver() {
 	flag.BoolVar(&devMode, "dev", false, "Run server in dev mode")
 
 	flag.CommandLine.Parse(os.Args[2:])
-
-	if !strings.Contains(addrport, ":") {
-		addrport = "127.0.0.1:" + addrport
-	}
 
 	err := runManageCommand([]string{"migrate", "--check"})
 	if err != nil {
@@ -40,7 +35,10 @@ func Runserver() {
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
-	http.Handle("/static/", http.FileServer(http.FS(GlobalContext.StaticFiles)))
+	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		http.FileServer(http.FS(GlobalContext.StaticFiles)).ServeHTTP(w, r)
+	})
 
 	// Django
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -90,7 +88,6 @@ func startGunicorn(devMode bool) (string, error) {
 		cmdArgs = append(cmdArgs, "--reload")
 	}
 	cmd := exec.Command("python3", cmdArgs...)
-	cmd.Env = append(cmd.Env, "DIST_DIR="+tempDir)
 	if devMode {
 		setDevPythonEnv(cmd)
 		cmd.Env = append(cmd.Env, "DEBUG=true")
@@ -98,6 +95,8 @@ func startGunicorn(devMode bool) (string, error) {
 		cmd.Stderr = os.Stderr
 	} else {
 		setPythonEnv(cmd)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
 	}
 
 	err = cmd.Start()

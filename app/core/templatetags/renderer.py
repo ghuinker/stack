@@ -23,7 +23,7 @@ def asset_manifest(name: str) -> str:
         return "http://localhost:3000/static/" + name
     entry = manifest.get(name)
     if entry and (file := entry.get("file")):
-        return file
+        return "/static/assets/" + file
     print(f"Asset manifest not found for: {name}")
     return ""
 

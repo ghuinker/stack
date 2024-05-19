@@ -15,9 +15,11 @@ type ManageContext struct {
 var GlobalContext *ManageContext
 
 func setPythonEnv(cmd *exec.Cmd) {
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", filepath.Join(GlobalContext.TempDir, "app"), filepath.Join(GlobalContext.TempDir, "venv/lib/python3.12/site-packages")))
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", GlobalContext.TempDir, filepath.Join(GlobalContext.TempDir, "venv/lib/python3.12/site-packages")))
+	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.TempDir)
 }
 
 func setDevPythonEnv(cmd *exec.Cmd) {
 	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", "app", filepath.Join(GlobalContext.TempDir, "venv/lib/python3.12/site-packages")))
+	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.TempDir)
 }
