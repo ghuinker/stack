@@ -16,7 +16,6 @@ import (
 var embeddedFiles embed.FS
 
 //go:embed static/*
-//go:embed assets/icons/*
 var staticFiles embed.FS
 
 /* TODO:

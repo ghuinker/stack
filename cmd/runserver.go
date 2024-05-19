@@ -28,7 +28,7 @@ func Runserver() {
 	}
 
 	fmt.Println("Starting server at:", addrport)
-
+	// TODO: we may want to check for migrations
 	gunicornURL, err := startGunicorn(devMode)
 	if err != nil {
 		return
@@ -36,10 +36,9 @@ func Runserver() {
 
 	// TODO: if devmode then figure out asset thing for vite
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, "/assets/icons/favicon.ico", http.StatusMovedPermanently)
+		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
 	http.Handle("/static/", http.FileServer(http.FS(GlobalContext.StaticFiles)))
-	http.Handle("/assets/icons/", http.FileServer(http.FS(GlobalContext.StaticFiles)))
 
 	// Django
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
