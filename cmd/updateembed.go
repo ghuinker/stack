@@ -8,7 +8,9 @@ import (
 )
 
 var overrides = map[string]string{
-	"python-dotenv": "dotenv",
+	"python-dotenv":       "dotenv",
+	"djangorestframework": "rest_framework",
+	"django-filter":       "django_filters",
 }
 
 func readPackages(filename string) ([]string, error) {
@@ -59,6 +61,7 @@ func UpdateEmbed() {
 		if ok {
 			builder.WriteString(override)
 		} else {
+			pkg = strings.Replace(pkg, "-", "_", -1)
 			builder.WriteString(pkg)
 		}
 		builder.WriteString(" ")

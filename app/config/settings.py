@@ -32,7 +32,11 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    # src
     "app.core",
+    # third party
+    "rest_framework",
+    "django_filters",
 ]
 
 MIDDLEWARE = [
@@ -113,8 +117,18 @@ USE_TZ = True
 
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.2/howto/static-files/
-STATIC_ROOT = "static/"
-STATIC_URL = "static/"
+STATIC_ROOT = os.path.join(PROCESS_DIR, "static")
+STATIC_URL = "/static/"
+
+MEDIA_ROOT = os.path.join(PROCESS_DIR, "media")
+MEDIA_URL = "/media/"
+
+# Rest Framework
+REST_FRAMEWORK = {
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
+    "DEFAULT_RENDERER_CLASSES": ("rest_framework.renderers.JSONRenderer",),
+}
+
 
 # Default primary key field type
 # https://docs.djangoproject.com/en/4.2/ref/settings/#default-auto-field
