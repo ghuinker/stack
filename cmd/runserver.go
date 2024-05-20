@@ -4,6 +4,7 @@ import (
 	"context"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/http"
 	"net/http/httputil"
@@ -14,6 +15,7 @@ import (
 	"path/filepath"
 	"strconv"
 	"syscall"
+	"time"
 )
 
 func Runserver() {
@@ -25,7 +27,25 @@ func Runserver() {
 
 	flag.CommandLine.Parse(os.Args[2:])
 
-	err := runManageCommand([]string{"migrate", "--check"})
+	if err := os.MkdirAll("logs", os.ModePerm); err != nil {
+		log.Fatalf("Failed to create logs directory: %v", err)
+		return
+	}
+
+	checkFileSize("logs", 500*1024*1024) // 500MB
+
+	logFilePath := filepath.Join("logs", "requests.log")
+
+	logFile, err := os.OpenFile(logFilePath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+	if err != nil {
+		log.Fatalf("Failed to open log file: %v", err)
+		return
+	}
+	defer logFile.Close()
+
+	log.SetOutput(logFile)
+
+	err = runManageCommand([]string{"migrate", "--check"})
 	if err != nil {
 		println("Migrations not applied, run: stack manage migrate")
 	}
@@ -35,20 +55,24 @@ func Runserver() {
 		return
 	}
 
+	router := http.NewServeMux()
+
+	// I'm not going to recrod this in the logger because it redirects to static
 	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
-	http.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Cache-Control", "public, max-age=3600")
 		http.FileServer(http.FS(GlobalContext.StaticFiles)).ServeHTTP(w, r)
 	})
 
 	// Django
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		reverseProxy(w, r, gunicornURL)
 	})
 
-	server := &http.Server{Addr: addrport}
+	configuredRouter := loggingMiddleware(router, !devMode)
+	server := &http.Server{Addr: addrport, Handler: configuredRouter}
 	go func() {
 		println("Starting server at: " + addrport)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
@@ -75,6 +99,37 @@ func Runserver() {
 		fmt.Printf("Error shutting down HTTP server: %v\n", err)
 	}
 
+}
+
+func loggingMiddleware(next http.Handler, shouldLog bool) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		start := time.Now()
+		next.ServeHTTP(w, r)
+		duration := time.Since(start)
+		if shouldLog {
+			log.Printf("%s %s [%s] - %v", r.Method, r.RequestURI, r.RemoteAddr, duration)
+		}
+	})
+}
+
+func checkFileSize(directory string, maxSize int64) error {
+	maxSizeMB := maxSize / (1024 * 1024) // Convert maxSize to megabytes
+
+	err := filepath.Walk(directory, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if !info.IsDir() && info.Size() > maxSize {
+			log.Printf("Log %s is over %d MB. Run ./stack compresslogs to zip.", path, maxSizeMB)
+		}
+		return nil
+	})
+
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func findAvailablePort(startPort int) (int, error) {
@@ -120,8 +175,13 @@ func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
 		cmd.Stderr = os.Stderr
 	} else {
 		setPythonEnv(cmd)
-		cmd.Stdout = os.Stdout
-		cmd.Stderr = os.Stderr
+		logFile, err := os.OpenFile("logs/gunicorn.log", os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
+		if err != nil {
+			fmt.Println("Failed to open log", err)
+		}
+		defer logFile.Close()
+		cmd.Stdout = logFile
+		cmd.Stderr = logFile
 	}
 
 	err = cmd.Start()

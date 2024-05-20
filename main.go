@@ -23,7 +23,16 @@ var embeddedFiles embed.FS
 var staticFiles embed.FS
 
 /* TODO:
-1. Logging
+2. Update secret key in the setup script
+	1. Also probably create logging folder
+	2. Then I can remove the scripts folder
+3. Probably make a setup in makefile
+	1. pip
+	2. golang
+	3. yarn
+	4. do a build
+4. autotls
+	1. Use host_name and .env variable for this
 */
 
 func main() {
@@ -65,6 +74,8 @@ func main() {
 		cmd.UpdateEmbed()
 	case "setup":
 		cmd.Setup()
+	case "compresslogs":
+		cmd.CompressLogs()
 	default:
 		fmt.Println("Unknown command:", command)
 	}
