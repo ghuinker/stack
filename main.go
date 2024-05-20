@@ -23,9 +23,6 @@ var embeddedFiles embed.FS
 var staticFiles embed.FS
 
 /* TODO:
-2. Update secret key in the setup script
-	1. Also probably create logging folder
-	2. Then I can remove the scripts folder
 3. Probably make a setup in makefile
 	1. pip
 	2. golang
