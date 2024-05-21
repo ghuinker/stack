@@ -16,6 +16,8 @@ import (
 	"strconv"
 	"syscall"
 	"time"
+
+	"github.com/caddyserver/certmagic"
 )
 
 func Runserver() {
@@ -57,8 +59,7 @@ func Runserver() {
 
 	router := http.NewServeMux()
 
-	// I'm not going to recrod this in the logger because it redirects to static
-	http.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
 	router.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
@@ -72,11 +73,19 @@ func Runserver() {
 	})
 
 	configuredRouter := loggingMiddleware(router, !devMode)
+
 	server := &http.Server{Addr: addrport, Handler: configuredRouter}
 	go func() {
-		println("Starting server at: " + addrport)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			fmt.Printf("HTTP server error: %v\n", err)
+		if os.Getenv("AUTO_TLS") == "true" {
+			println("Starting server at: " + os.Getenv("HOST_NAME"))
+			if err := certmagic.HTTPS([]string{os.Getenv("HOST_NAME")}, configuredRouter); err != nil {
+				println("Error starting server: ", err)
+			}
+		} else {
+			println("Starting server at: " + addrport)
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				fmt.Printf("HTTP server error: %v\n", err)
+			}
 		}
 	}()
 

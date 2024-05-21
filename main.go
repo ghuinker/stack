@@ -22,16 +22,6 @@ var embeddedFiles embed.FS
 //go:embed static/*
 var staticFiles embed.FS
 
-/* TODO:
-3. Probably make a setup in makefile
-	1. pip
-	2. golang
-	3. yarn
-	4. do a build
-4. autotls
-	1. Use host_name and .env variable for this
-*/
-
 func main() {
 	if len(os.Args) < 2 {
 		fmt.Println("Usage: go run script.go <command>")
