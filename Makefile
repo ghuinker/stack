@@ -17,11 +17,13 @@ build-amd:
 
 setup-project:
 	go mod download
-	go run . setup
 	python3 -m venv venv
+	mkdir -p logs
 	python3 -m pip install --upgrade pip
 	. venv/bin/activate; pip install -r requirements.txt
+	cp .env.example .env
 	. venv/bin/activate; python3 manage.py migrate
 	yarn install --check-files
 	yarn build
+	. venv/bin/activate; python3 manage.py collectstatic --noinput
 	make build

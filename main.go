@@ -16,7 +16,7 @@ import (
 //go:embed manage.py
 //go:embed static/assets/manifest.json
 //go:embed .env.example
-//go:embed all:venv/lib/python3.12/site-packages/asgiref all:venv/lib/python3.12/site-packages/certifi all:venv/lib/python3.12/site-packages/charset_normalizer all:venv/lib/python3.12/site-packages/django all:venv/lib/python3.12/site-packages/django_filters all:venv/lib/python3.12/site-packages/rest_framework all:venv/lib/python3.12/site-packages/environs all:venv/lib/python3.12/site-packages/gunicorn all:venv/lib/python3.12/site-packages/idna all:venv/lib/python3.12/site-packages/marshmallow all:venv/lib/python3.12/site-packages/packaging all:venv/lib/python3.12/site-packages/dotenv all:venv/lib/python3.12/site-packages/requests all:venv/lib/python3.12/site-packages/sqlparse all:venv/lib/python3.12/site-packages/urllib3
+//go:embed all:venv/lib/python3.12/site-packages
 var embeddedFiles embed.FS
 
 //go:embed static/*
@@ -57,8 +57,6 @@ func main() {
 		cmd.Shell()
 	case "createsuperuser":
 		cmd.CreateSuperUser()
-	case "updateembed":
-		cmd.UpdateEmbed()
 	case "setup":
 		cmd.Setup()
 	case "compresslogs":
