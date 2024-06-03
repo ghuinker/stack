@@ -174,7 +174,7 @@ func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
 	// 3. Start a Python process to run the Python files in the temporary directory
 	cmdArgs := []string{filepath.Join(tempDir, "venv/bin/gunicorn"), "app.config.wsgi", "-b " + gunicornURL}
 	if devMode {
-		cmdArgs = append(cmdArgs, "--reload")
+		cmdArgs = []string{"manage.py", "runserver", gunicornURL}
 	}
 	cmd := exec.Command("python3", cmdArgs...)
 	if devMode {
