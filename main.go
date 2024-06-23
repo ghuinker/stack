@@ -11,16 +11,8 @@ import (
 	"strings"
 )
 
-//go:embed all:app
-//go:embed venv/bin/gunicorn
-//go:embed manage.py
-//go:embed static/assets/manifest.json
-//go:embed .env.example
-//go:embed all:venv/lib/python3.12/site-packages
-var embeddedFiles embed.FS
-
-//go:embed static/*
-var staticFiles embed.FS
+//go:embed all:dist/*
+var embeddedDist embed.FS
 
 func main() {
 	if len(os.Args) < 2 {
@@ -34,15 +26,20 @@ func main() {
 
 	loadEnvFile(".env")
 
-	err := os.Mkdir(outDirectory, 0755)
+	err := os.MkdirAll(outDirectory, 0755)
 	if err != nil {
 		fmt.Println("Error creating .out directory:", err)
 		return
 	}
 
-	cmd.GlobalContext = &cmd.ManageContext{OutDir: outDirectory, StaticFiles: staticFiles}
+	dist, err := fs.Sub(embeddedDist, "dist")
+	if err != nil {
+		fmt.Println("Unable to read dist: ", err)
+		return
+	}
 
-	err = extractFiles(embeddedFiles, outDirectory)
+	cmd.GlobalContext = &cmd.ManageContext{OutDir: outDirectory, Dist: dist}
+	err = extractFiles(dist, outDirectory)
 
 	if err != nil {
 		fmt.Println("Error extracting embedded files:", err)
@@ -67,13 +64,13 @@ func main() {
 	}
 }
 
-func extractFiles(embeddedFS embed.FS, targetDir string) error {
+func extractFiles(embeddedFS fs.FS, targetDir string) error {
 	return fs.WalkDir(embeddedFS, ".", func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
-		if !d.IsDir() && !strings.Contains(path, "__pycache__") {
-			fileContent, err := embeddedFS.ReadFile(path)
+		if !d.IsDir() {
+			fileContent, err := fs.ReadFile(embeddedFS, path)
 			if err != nil {
 				return err
 			}
@@ -82,6 +79,13 @@ func extractFiles(embeddedFS embed.FS, targetDir string) error {
 			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
 				return err
 			}
+
+			if _, err := os.Stat(filePath); err == nil {
+				if err := os.Remove(filePath); err != nil {
+					return err
+				}
+			}
+
 			if err := os.WriteFile(filePath, fileContent, 0755); err != nil {
 				return err
 			}

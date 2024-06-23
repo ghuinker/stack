@@ -8,8 +8,8 @@ import (
 )
 
 type ManageContext struct {
-	OutDir      string
-	StaticFiles fs.FS
+	OutDir string
+	Dist   fs.FS
 }
 
 var GlobalContext *ManageContext
