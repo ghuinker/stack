@@ -19,6 +19,10 @@ func Setup() {
 		fmt.Println("Updating Secret Key")
 		updateSecretKey()
 	}
+	err = copyFile(filepath.Join(GlobalContext.OutDir, "manage.py"), "manage.py")
+	if err != nil {
+		fmt.Println("Unable to create manage.py: ", err)
+	}
 }
 
 func updateSecretKey() {
@@ -43,7 +47,7 @@ func updateSecretKey() {
 }
 
 func getRandomSecretKey() string {
-	chars := "abcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*(-_=+)"
+	chars := "abcdefghijklmnopqrstuvwxyz0123456789!@$%^&*(-_=+)"
 	return getRandomString(50, chars)
 }
 

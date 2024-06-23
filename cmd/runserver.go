@@ -170,7 +170,7 @@ func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
 	}
 	gunicornURL := fmt.Sprintf("127.0.0.1:%d", gunicornPort)
 
-	cmdArgs := []string{filepath.Join(GlobalContext.OutDir, "gunicorn"), "app.config.wsgi", "-b " + gunicornURL}
+	cmdArgs := []string{filepath.Join(GlobalContext.OutDir, "venv/bin/gunicorn"), "app.config.wsgi", "-b " + gunicornURL}
 	if devMode {
 		// Using runserver for dev does better job at reloading
 		cmdArgs = []string{"manage.py", "runserver", gunicornURL}

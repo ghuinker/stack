@@ -15,20 +15,11 @@ build-amd:
 	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o stack
 
 prebuild:
-	rm -rf static/*
-	rm -rf dist/*
-	yarn build
-	cp -r assets/icons static/icons
-	make build-py
-	cp -r manage.py static .env.example dist
-
-build-py:
-	docker build -t $(PROJECT_NAME)-py-env -f build/dist.dockerfile .
-	container_id=$$(docker create $(PROJECT_NAME)-py-env) && \
+	rm -rf dist
+	docker build -t $(PROJECT_NAME)-build-env -f build/build.dockerfile .
+	container_id=$$(docker create $(PROJECT_NAME)-build-env) && \
 	docker cp $$container_id:/dist dist && \
 	docker rm $$container_id
-	mv dist/dist/* dist
-	rm -r dist/dist
 
 setup-project:
 	go mod download

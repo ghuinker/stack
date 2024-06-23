@@ -51,10 +51,6 @@ func main() {
 		cmd.Manage()
 	case "runserver":
 		cmd.Runserver()
-	case "shell":
-		cmd.Shell()
-	case "createsuperuser":
-		cmd.CreateSuperUser()
 	case "setup":
 		cmd.Setup()
 	case "compresslogs":
