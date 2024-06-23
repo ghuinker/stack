@@ -12,7 +12,7 @@ func Manage() {
 }
 
 func runManageCommand(args []string) error {
-	cmdArgs := append([]string{filepath.Join(GlobalContext.TempDir, "manage.py")}, args...)
+	cmdArgs := append([]string{filepath.Join(GlobalContext.OutDir, "manage.py")}, args...)
 	cmd := exec.Command("python3", cmdArgs...)
 	setPythonEnv(cmd)
 

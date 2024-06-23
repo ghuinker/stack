@@ -14,7 +14,7 @@ import (
 
 func Setup() {
 	fmt.Println("Creating .env")
-	err := copyFile(filepath.Join(GlobalContext.TempDir, ".env.example"), ".env")
+	err := copyFile(filepath.Join(GlobalContext.OutDir, ".env.example"), ".env")
 	if err == nil {
 		fmt.Println("Updating Secret Key")
 		updateSecretKey()

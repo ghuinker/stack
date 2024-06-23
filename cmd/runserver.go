@@ -163,7 +163,7 @@ func reverseProxy(w http.ResponseWriter, r *http.Request, gunicornURL string) {
 }
 
 func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
-	tempDir := GlobalContext.TempDir
+	tempDir := GlobalContext.OutDir
 	gunicornPort, err := findAvailablePort(8100)
 	if err != nil {
 		fmt.Println("Error finding gunicorn port:", err)
@@ -171,9 +171,9 @@ func startGunicorn(devMode bool) (string, *exec.Cmd, error) {
 	}
 	gunicornURL := fmt.Sprintf("127.0.0.1:%d", gunicornPort)
 
-	// 3. Start a Python process to run the Python files in the temporary directory
 	cmdArgs := []string{filepath.Join(tempDir, "venv/bin/gunicorn"), "app.config.wsgi", "-b " + gunicornURL}
 	if devMode {
+		// Using runserver for dev does better job at reloading
 		cmdArgs = []string{"manage.py", "runserver", gunicornURL}
 	}
 	cmd := exec.Command("python3", cmdArgs...)

@@ -30,18 +30,19 @@ func main() {
 
 	command := os.Args[1]
 
+	outDirectory := ".out"
+
 	loadEnvFile(".env")
 
-	tempDir, err := os.MkdirTemp("", "")
+	err := os.Mkdir(outDirectory, 0755)
 	if err != nil {
-		fmt.Println("Error creating temporary directory:", err)
+		fmt.Println("Error creating .out directory:", err)
 		return
 	}
 
-	cmd.GlobalContext = &cmd.ManageContext{TempDir: tempDir, StaticFiles: staticFiles}
+	cmd.GlobalContext = &cmd.ManageContext{OutDir: outDirectory, StaticFiles: staticFiles}
 
-	err = extractFiles(embeddedFiles, tempDir)
-	defer os.RemoveAll(tempDir)
+	err = extractFiles(embeddedFiles, outDirectory)
 
 	if err != nil {
 		fmt.Println("Error extracting embedded files:", err)

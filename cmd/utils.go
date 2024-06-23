@@ -8,18 +8,18 @@ import (
 )
 
 type ManageContext struct {
-	TempDir     string
+	OutDir      string
 	StaticFiles fs.FS
 }
 
 var GlobalContext *ManageContext
 
 func setPythonEnv(cmd *exec.Cmd) {
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", GlobalContext.TempDir, filepath.Join(GlobalContext.TempDir, "venv/lib/python3.12/site-packages")))
-	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.TempDir)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", GlobalContext.OutDir, filepath.Join(GlobalContext.OutDir, "venv/lib/python3.12/site-packages")))
+	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.OutDir)
 }
 
 func setDevPythonEnv(cmd *exec.Cmd) {
-	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", "app", filepath.Join(GlobalContext.TempDir, "venv/lib/python3.12/site-packages")))
-	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.TempDir)
+	cmd.Env = append(cmd.Env, fmt.Sprintf("PYTHONPATH=%s:%s", "app", filepath.Join(GlobalContext.OutDir, "venv/lib/python3.12/site-packages")))
+	cmd.Env = append(cmd.Env, "DIST_DIR="+GlobalContext.OutDir)
 }
