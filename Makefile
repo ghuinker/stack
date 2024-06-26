@@ -7,16 +7,17 @@ ifneq (,$(wildcard ./.env))
 endif
 
 build:
-	make prebuild
+	docker build -t $(PROJECT_NAME)-build-env -f build/build.dockerfile .
+	make postbuild
 	go build -ldflags="-w -s" -o stack
 
 build-amd:
-	make prebuild
+	docker build --platform linux/amd64 -t $(PROJECT_NAME)-build-env -f build/build.dockerfile .
+	make postbuild
 	GOOS=linux GOARCH=amd64 go build -ldflags="-w -s" -o stack
 
-prebuild:
+postbuild:
 	rm -rf dist
-	docker build -t $(PROJECT_NAME)-build-env -f build/build.dockerfile .
 	container_id=$$(docker create $(PROJECT_NAME)-build-env) && \
 	docker cp $$container_id:/dist dist && \
 	docker rm $$container_id
