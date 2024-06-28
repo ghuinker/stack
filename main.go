@@ -1,126 +1,129 @@
 package main
 
 import (
-	"bufio"
+	"context"
 	"embed"
 	"fmt"
-	"io/fs"
+	"net/http"
+	"net/http/httputil"
+	"net/url"
 	"os"
-	"path/filepath"
-	"stack/cmd"
+	"os/exec"
+	"os/signal"
 	"strings"
+	"syscall"
+
+	"github.com/caddyserver/certmagic"
 )
 
-//go:embed all:dist/*
-var embeddedDist embed.FS
+//go:embed all:static
+var staticFiles embed.FS
+
+var gunicornURL = "127.0.0.1:8000"
 
 func main() {
-	if len(os.Args) < 2 {
-		fmt.Println("Usage: go run script.go <command>")
-		os.Exit(1)
-	}
-
-	command := os.Args[1]
-
-	outDirectory := ".out"
-
-	loadEnvFile(".env")
-
-	err := os.MkdirAll(outDirectory, 0755)
+	// You can handle more graceful failures here
+	err := runMigrations()
 	if err != nil {
-		fmt.Println("Error creating .out directory:", err)
+		fmt.Println("Error running migrations: ", err)
 		return
 	}
 
-	dist, err := fs.Sub(embeddedDist, "dist")
+	gunicornCmd, err := startGunicorn()
 	if err != nil {
-		fmt.Println("Unable to read dist: ", err)
+		fmt.Println("Error starting gunicorn: ", err)
 		return
 	}
 
-	cmd.GlobalContext = &cmd.ManageContext{OutDir: outDirectory, Dist: dist}
-	err = extractFiles(dist, outDirectory)
+	router := http.NewServeMux()
 
-	if err != nil {
-		fmt.Println("Error extracting embedded files:", err)
-		return
-	}
-
-	switch command {
-	case "manage":
-		cmd.Manage()
-	case "runserver":
-		cmd.Runserver()
-	case "setup":
-		cmd.Setup()
-	case "compresslogs":
-		cmd.CompressLogs()
-	default:
-		fmt.Println("Unknown command:", command)
-	}
-}
-
-func extractFiles(embeddedFS fs.FS, targetDir string) error {
-	return fs.WalkDir(embeddedFS, ".", func(path string, d fs.DirEntry, err error) error {
-		if err != nil {
-			return err
-		}
-		if !d.IsDir() {
-			fileContent, err := fs.ReadFile(embeddedFS, path)
-			if err != nil {
-				return err
-			}
-			filePath := filepath.Join(targetDir, path)
-
-			if err := os.MkdirAll(filepath.Dir(filePath), 0755); err != nil {
-				return err
-			}
-
-			if _, err := os.Stat(filePath); err == nil {
-				if err := os.Remove(filePath); err != nil {
-					return err
-				}
-			}
-
-			if err := os.WriteFile(filePath, fileContent, 0755); err != nil {
-				return err
-			}
-		}
-		return nil
+	router.HandleFunc("/favicon.ico", func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, "/static/icons/favicon.ico", http.StatusMovedPermanently)
 	})
+	router.HandleFunc("/static/", func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Cache-Control", "public, max-age=3600")
+		http.FileServer(http.FS(staticFiles)).ServeHTTP(w, r)
+	})
+
+	// Django
+	router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		reverseProxy(w, r, gunicornURL)
+	})
+
+	server := &http.Server{Handler: router}
+	go func() {
+		if os.Getenv("AUTO_TLS") == "true" {
+			certmagic.DefaultACME.Agreed = true
+			certmagic.DefaultACME.Email = os.Getenv("CERT_EMAIL")
+			if strings.EqualFold(os.Getenv("CERT_STAGING"), "true") {
+				certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
+			}
+			certmagic.DefaultACME.Email = os.Getenv("CERT_EMAIL")
+			println("Starting server at: " + os.Getenv("HOST_NAME"))
+			// TODO: add some checks here
+			if err := certmagic.HTTPS([]string{os.Getenv("HOST_NAME")}, router); err != nil {
+				println("Error starting server: ", err)
+			}
+		} else {
+			println("Starting server")
+			if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				fmt.Printf("HTTP server error: %v\n", err)
+			}
+		}
+	}()
+
+	// Capture interrupt signal
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
+	<-sigChan
+
+	// Handle shutdown
+	fmt.Println("Shutting down...")
+
+	// Terminate Python subprocess
+	if err := gunicornCmd.Process.Signal(os.Interrupt); err != nil {
+		fmt.Printf("Error terminating Python subprocess: %v\n", err)
+	}
+	gunicornCmd.Process.Wait()
+
+	// Shutdown HTTP server gracefully
+	if err := server.Shutdown(context.Background()); err != nil {
+		fmt.Printf("Error shutting down HTTP server: %v\n", err)
+	}
 }
 
-func loadEnvFile(filename string) error {
-	file, err := os.Open(filename)
+func reverseProxy(w http.ResponseWriter, r *http.Request, gunicornURL string) {
+	proxy := httputil.NewSingleHostReverseProxy(&url.URL{
+		Scheme: "http",
+		Host:   gunicornURL,
+	})
+
+	// Serve the request using the reverse proxy
+	proxy.ServeHTTP(w, r)
+}
+
+func startGunicorn() (*exec.Cmd, error) {
+	cmdArgs := []string{"app.config.wsgi", "-b " + gunicornURL, "--max-requests", "1200", "--max-requests-jitter", "50"}
+	cmd := exec.Command("gunicorn", cmdArgs...)
+
+	cmd.Env = append(cmd.Env, "DEBUG=False")
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Start()
+
 	if err != nil {
-		return err
+		fmt.Println("Error starting gunicorn process:", err)
+		return nil, nil
 	}
-	defer file.Close()
+	return cmd, nil
+}
 
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
+func runMigrations() error {
+	cmdArgs := []string{"manage.py", "migrate"}
+	cmd := exec.Command("python3", cmdArgs...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
 
-		if strings.HasPrefix(line, "#") || strings.TrimSpace(line) == "" {
-			continue
-		}
-
-		parts := strings.SplitN(line, "=", 2)
-		if len(parts) != 2 {
-			return fmt.Errorf("invalid line in .env file: %s", line)
-		}
-
-		key := strings.TrimSpace(parts[0])
-		value := strings.TrimSpace(parts[1])
-
-		if err := os.Setenv(key, value); err != nil {
-			return fmt.Errorf("error setting environment variable: %v", err)
-		}
-	}
-
-	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("error reading .env file: %v", err)
-	}
-
-	return nil
+	return cmd.Run()
 }
