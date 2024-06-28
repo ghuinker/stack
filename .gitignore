@@ -1,6 +1,5 @@
 .env
 
-stack
 *.sqlite3
 .out
 
