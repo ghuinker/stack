@@ -16,7 +16,13 @@ build-amd:
 	docker build --platform linux/amd64 -t $(PROJECT_NAME)-amd .
 
 run-prod:
-	docker run -v ./db.sqlite3:/app/db.sqlite3 -v ./certs:/app/.local/share/certmagic --env-file=.env -p 8000:80 $(PROJECT_NAME)
+	docker run -v -d ./db.sqlite3:/app/db.sqlite3 -v ./certs:/app/.local/share/certmagic --env-file=.env -p 80:80 -p 443:443 $(PROJECT_NAME)
+
+save-image:
+	docker save -o tmp/stack.tar $(PROJECT_NAME)-amd
+
+load-image:
+	docker load -i stack.tar
 
 setup-project:
 	go mod download

@@ -52,15 +52,13 @@ func main() {
 
 	server := &http.Server{Handler: router}
 	go func() {
-		if os.Getenv("AUTO_TLS") == "true" {
+		if os.Getenv("CERT_AUTO_TLS") == "true" {
 			certmagic.DefaultACME.Agreed = true
 			certmagic.DefaultACME.Email = os.Getenv("CERT_EMAIL")
 			if strings.EqualFold(os.Getenv("CERT_STAGING"), "true") {
 				certmagic.DefaultACME.CA = certmagic.LetsEncryptStagingCA
 			}
-			certmagic.DefaultACME.Email = os.Getenv("CERT_EMAIL")
 			println("Starting server at: " + os.Getenv("HOST_NAME"))
-			// TODO: add some checks here
 			if err := certmagic.HTTPS([]string{os.Getenv("HOST_NAME")}, router); err != nil {
 				println("Error starting server: ", err)
 			}
@@ -106,7 +104,6 @@ func startGunicorn() (*exec.Cmd, error) {
 	cmdArgs := []string{"app.config.wsgi", "-b " + gunicornURL, "--max-requests", "1200", "--max-requests-jitter", "50"}
 	cmd := exec.Command("gunicorn", cmdArgs...)
 
-	cmd.Env = append(cmd.Env, "DEBUG=False")
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
