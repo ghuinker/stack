@@ -23,7 +23,8 @@ var gunicornURL = "127.0.0.1:8000"
 
 func main() {
 	// You can handle more graceful failures here
-	err := runMigrations()
+	auto_migrate := os.Getenv("AUTO_MIGRATE") == "true"
+	err := runMigrations(auto_migrate)
 	if err != nil {
 		fmt.Println("Error running migrations: ", err)
 		return
@@ -101,7 +102,7 @@ func reverseProxy(w http.ResponseWriter, r *http.Request, gunicornURL string) {
 }
 
 func startGunicorn() (*exec.Cmd, error) {
-	cmdArgs := []string{"app.config.wsgi", "-b " + gunicornURL, "--max-requests", "1200", "--max-requests-jitter", "50"}
+	cmdArgs := []string{"app.config.wsgi", "-b " + gunicornURL, "--workers", "3", "--max-requests", "1200", "--max-requests-jitter", "50"}
 	cmd := exec.Command("gunicorn", cmdArgs...)
 
 	cmd.Stdout = os.Stdout
@@ -116,8 +117,14 @@ func startGunicorn() (*exec.Cmd, error) {
 	return cmd, nil
 }
 
-func runMigrations() error {
+func runMigrations(auto_migrate bool) error {
 	cmdArgs := []string{"manage.py", "migrate"}
+	if auto_migrate {
+		fmt.Println("Running migrations")
+	} else {
+		fmt.Println("Checking migrations")
+		cmdArgs = append(cmdArgs, "--check")
+	}
 	cmd := exec.Command("python3", cmdArgs...)
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr

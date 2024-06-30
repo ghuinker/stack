@@ -1,0 +1,11 @@
+# Load the .env file
+ifneq (,$(wildcard ./.env))
+    include .env
+    export
+endif
+
+run:
+	docker run -v -d ./db.sqlite3:/app/db.sqlite3 -v ./certs:/root/.local/share/certmagic --env-file=.env -p 80:80 -p 443:443 $(PROJECT_NAME)
+	
+load:
+	docker load -i stack.tar
