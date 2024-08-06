@@ -24,6 +24,7 @@ setup-project:
 	python3 -m venv venv
 	. venv/bin/activate; pip install -r requirements.txt
 	cp .env.example .env
+	sed -i '' '1s/.*/DEBUG=True/' .env
 	. venv/bin/activate; python3 manage.py migrate
 	yarn install --check-files
 	yarn build

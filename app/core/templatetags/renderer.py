@@ -9,9 +9,13 @@ register = template.Library()
 
 
 def _get_manifest():
-    file_name = os.path.join(settings.DIST_DIR, "static/assets/manifest.json")
-    with open(file_name, "r") as f:
-        return json.load(f)
+    try:
+        file_name = os.path.join(settings.DIST_DIR, "static/assets/manifest.json")
+        with open(file_name, "r") as f:
+            return json.load(f)
+    except FileNotFoundError:
+        print("Manifest file not found")
+        return {}
 
 
 @register.simple_tag
